@@ -196,10 +196,17 @@ RLWE<R_crt, 1> accumulation(const RLWE<CirculantRing<Zp12, 1, 1>, N> &ab, const 
 Rp12LWE preparation(const LWE &Em, const KSWKeyLWE &S_lwe, const Rp1GSW Xsi[N], const KSWKeyRp1 KSp1[P1], const Rp2GSW Ysi[N], const KSWKeyRp2 KSp2[P2])
 {
     std::chrono::time_point<std::chrono::system_clock> start, end;
-    std::chrono::duration<double> acc1_time, acc2_time, crt_time;
+    std::chrono::duration<double> ksw_time, msw_time, acc1_time, acc2_time, crt_time;
 
+    start = std::chrono::system_clock::now();
     RLWE<Rz, N> Em_short = Em.key_switch(S_lwe);
+    end = std::chrono::system_clock::now();
+    ksw_time = end - start;
+
+    start = std::chrono::system_clock::now();
     RLWE<CirculantRing<Zp12, 1, 1>, N> ab_short = Em_short.mod_switch<CirculantRing<Zp12, 1, 1>, P1*P2, Qp>();
+    end = std::chrono::system_clock::now();
+    msw_time = end - start;
 
     start = std::chrono::system_clock::now();
     RLWE<Rp1_crt, 1> crt_in_p = accumulation<Rp1, Zp1, Rp1_crt, P1>(ab_short, Xsi, KSp1);
@@ -216,7 +223,7 @@ Rp12LWE preparation(const LWE &Em, const KSWKeyLWE &S_lwe, const Rp1GSW Xsi[N], 
     exp_crt(result, crt_in_p, crt_in_q);
     end = std::chrono::system_clock::now();
     crt_time = end - start;
-    std::cerr << "In L_c -> ExtExpInner 1: " << acc1_time.count() << "s, ExtExpInner 2: " << acc2_time.count() << "s, ExpCRT: " << crt_time.count() << "s" << std::endl;
+    std::cerr << "In L_c -> KeySwitchLWE: " << ksw_time.count() << "s, ModSwitch: " << msw_time.count() << "s, ExtExpInner 1: " << acc1_time.count() << "s, ExtExpInner 2: " << acc2_time.count() << "s, ExpCRT: " << crt_time.count() << "s" << std::endl;
 
     return result.template mod_switch<Rp12, Qp, Qcrt>();
 }
