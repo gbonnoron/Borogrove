@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
     Fun F;
     //std::cout << "F(" << m << ") = F(" << m*(P1*P2/t) << ") = " << F(m*(P1*P2/t)) << std::endl;
     Rp12 Rf(F);
-    fftw_complex *f = fftw_alloc_complex(FFT_DIM2);
+    fftw_complex *f = align_alloc<fftw_complex>(ALIGNMENT, FFT_DIM2);
     Rf.compute_fft(f);
 
     int64_t coefs[k];
@@ -53,10 +53,10 @@ int main(int argc, char *argv[])
     start = chrono::system_clock::now();
     /** Generate secret keys **/
     cerr << "Generating secret keys... " << flush;
-    Rz *s = new Rz[P1];
+    Rz *s = align_alloc<Rz>(ALIGNMENT, P1);
     for (size_t i = 0 ; i < P1 ; ++i)
         s[i] = Rz::sample_s(DENSITY_KEY);
-    Rz *s2 = new Rz[N];
+    Rz *s2 = align_alloc<Rz>(ALIGNMENT, N);
     for (size_t i = 0 ; i < N ; ++i)
         s2[i] = Rz::sample_s(DENSITY_KEY_SMALL);
     Rp1 s_p = Rp1::sample_s(DENSITY_KEY_ACC);
@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
     Rp2GSW *Ysi = new Rp2GSW[N];
     gen_bootstrapping_keys<Rp2, N, P2>(q, t, Ysi, s2, s_q, VARIANCE_ACC);
     cerr << "Done." << endl;
-    delete[] s2;
+    free(s2);
     //cin >> pause;
 
     cerr << "Generating key-switching keys... " << flush;
@@ -148,8 +148,8 @@ int main(int argc, char *argv[])
     cout << endl << "Success: " << nb_success << "/" << nb_iter << " (" << nb_success * 100 / nb_iter << " %), average gate time: " << total_time.count()/nb_iter << "s" <<  endl << endl;
 
 
-    fftw_free(f);
-    delete[] s;
+    free(f);
+    free(s);
     delete S;
     delete[] Xsi;
     delete[] Ysi;

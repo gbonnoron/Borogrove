@@ -19,7 +19,7 @@
 template<class Int, uint64_t d, uint64_t d_fft>
 CirculantRing<Int, d, d_fft>::CirculantRing() : msb_fft(nullptr), lsb_fft(nullptr), fft_status(false)
 {
-    x = new Int[d];
+    x = align_alloc<Int>(ALIGNMENT, d);
 }
 template<class Int, uint64_t d, uint64_t d_fft>
 CirculantRing<Int, d, d_fft>::CirculantRing (const CirculantRing &src)
@@ -28,8 +28,8 @@ CirculantRing<Int, d, d_fft>::CirculantRing (const CirculantRing &src)
     if (fft_status)
     {
         x = nullptr;
-        msb_fft = fftw_alloc_complex(d_fft/2+1);
-        lsb_fft = fftw_alloc_complex(d_fft/2+1);
+        msb_fft = align_alloc<fftw_complex>(ALIGNMENT, d_fft/2+1);
+        lsb_fft = align_alloc<fftw_complex>(ALIGNMENT, d_fft/2+1);
         if (d < 2000)
         {
             std::memcpy(msb_fft, src.msb_fft, (d_fft/2+1) * 2 * sizeof(double));
@@ -48,7 +48,7 @@ CirculantRing<Int, d, d_fft>::CirculantRing (const CirculantRing &src)
     }
     else
     {
-        x = new Int[d];
+        x = align_alloc<Int>(ALIGNMENT, d);
         msb_fft = nullptr;
         lsb_fft = nullptr;
         std::copy(src.x, src.x + d, x);
@@ -59,7 +59,7 @@ template <class Int2>
 CirculantRing<Int, d, d_fft>::CirculantRing (const CirculantRing<Int2, d, d_fft> &src)
 {
     assert(! src.get_fft_status());
-    x = new Int[d];
+    x = align_alloc<Int>(ALIGNMENT, d);
     Int2 *src_x = src.get_data();
     for (size_t i = 0 ; i < d ; ++i)
         x[i] = src_x[i];
@@ -74,7 +74,7 @@ CirculantRing<Int, d, d_fft>::CirculantRing (const CirculantRing<Int, d, d_fft2>
 {
     assert(! src.get_fft_status());
     const Int *src_x = src.get_data();
-    x = new Int[d];
+    x = align_alloc<Int>(ALIGNMENT, d);
     std::copy(src_x, src_x + d, x);
     fft_status = false;
     msb_fft = nullptr;
@@ -86,7 +86,7 @@ CirculantRing<Int, d, d_fft>::CirculantRing (Int *values, bool copy)
 {
     if (copy)
     {
-        x = new Int[d];
+        x = align_alloc<Int>(ALIGNMENT, d);
         std::copy(values, values + d, x);
     }
     else
@@ -101,8 +101,8 @@ CirculantRing<Int, d, d_fft>::CirculantRing (fftw_complex *msb_fft_values, fftw_
 {
     if (copy)
     {
-        msb_fft = fftw_alloc_complex(d_fft/2+1);
-        lsb_fft = fftw_alloc_complex(d_fft/2+1);
+        msb_fft = align_alloc<fftw_complex>(ALIGNMENT, d_fft/2+1);
+        lsb_fft = align_alloc<fftw_complex>(ALIGNMENT, d_fft/2+1);
         std::memcpy(msb_fft, msb_fft_values, (d_fft/2+1) * 2 * sizeof(double));
         std::memcpy(lsb_fft, lsb_fft_values, (d_fft/2+1) * 2 * sizeof(double));
     }
@@ -118,7 +118,7 @@ CirculantRing<Int, d, d_fft>::CirculantRing (fftw_complex *msb_fft_values, fftw_
 template<class Int, uint64_t d, uint64_t d_fft>
 CirculantRing<Int, d, d_fft>::CirculantRing (const Int val)
 {
-    x = new Int[d];
+    x = align_alloc<Int>(ALIGNMENT, d);
     x[0] = val;
     std::fill(x + 1, x + d, 0);
     fft_status = false;
@@ -128,7 +128,7 @@ CirculantRing<Int, d, d_fft>::CirculantRing (const Int val)
 template<class Int, uint64_t d, uint64_t d_fft>
 CirculantRing<Int, d, d_fft>::CirculantRing (const int64_t *values)
 {
-    x = new Int[d];
+    x = align_alloc<Int>(ALIGNMENT, d);
     for (size_t i = 0 ; i < d ; ++i)
         x[i] = values[i];
     fft_status = false;
@@ -138,7 +138,7 @@ CirculantRing<Int, d, d_fft>::CirculantRing (const int64_t *values)
 template<class Int, uint64_t d, uint64_t d_fft>
 CirculantRing<Int, d, d_fft>::CirculantRing (const Fun &F)
 {
-    x = new Int[d];
+    x = align_alloc<Int>(ALIGNMENT, d);
     x[0] = F(0);
     for (size_t i = 1 ; i < d ; ++i)
         x[d - i] = F(i);
@@ -151,14 +151,14 @@ CirculantRing<Int, d, d_fft>::~CirculantRing()
 {
     if (fft_status)
     {
-        fftw_free(msb_fft);
-        fftw_free(lsb_fft);
+        free(msb_fft);
+        free(lsb_fft);
         msb_fft = nullptr;
         lsb_fft = nullptr;
     }
     else
     {
-        delete[] x;
+        free(x);
         x = nullptr;
     }
 }
@@ -184,10 +184,11 @@ CirculantRing<Int, d, d_fft>& CirculantRing<Int, d, d_fft>::operator=(const Circ
         {
             if (! fft_status)
             {
-                delete[] x;
-                msb_fft = fftw_alloc_complex(d_fft/2+1);
-                lsb_fft = fftw_alloc_complex(d_fft/2+1);
+                free(x);
+                msb_fft = align_alloc<fftw_complex>(ALIGNMENT, d_fft/2+1);
+                lsb_fft = align_alloc<fftw_complex>(ALIGNMENT, d_fft/2+1);
                 fft_status = true;
+                x = nullptr;
             }
             std::memcpy(msb_fft, other.msb_fft, (d_fft/2+1) * 2 * sizeof(double));
             std::memcpy(lsb_fft, other.lsb_fft, (d_fft/2+1) * 2 * sizeof(double));
@@ -196,10 +197,12 @@ CirculantRing<Int, d, d_fft>& CirculantRing<Int, d, d_fft>::operator=(const Circ
         {
             if (fft_status)
             {
-                fftw_free(msb_fft);
-                fftw_free(lsb_fft);
-                x = new Int[d];
+                free(msb_fft);
+                free(lsb_fft);
+                x = align_alloc<Int>(ALIGNMENT, d);
                 fft_status = false;
+                msb_fft = nullptr;
+                lsb_fft = nullptr;
             }
             std::copy(other.x, other.x + d, x);
         }
@@ -213,11 +216,16 @@ CirculantRing<Int, d, d_fft>& CirculantRing<Int, d, d_fft>::operator=(CirculantR
     {
         if (fft_status)
         {
-            fftw_free(msb_fft);
-            fftw_free(lsb_fft);
+            free(msb_fft);
+            free(lsb_fft);
+            msb_fft = nullptr;
+            lsb_fft = nullptr;
         }
         else
-            delete[] x;
+        {
+            free(x);
+            x = nullptr;
+        }
 
         if (other.fft_status)
         {
@@ -348,11 +356,12 @@ void CirculantRing<Int, d, d_fft>::decomp_fft()
     CirculantRing msb, lsb;
     split(msb, lsb);
 
-    msb_fft = fftw_alloc_complex(d_fft/2+1);
-    lsb_fft = fftw_alloc_complex(d_fft/2+1);
+    msb_fft = align_alloc<fftw_complex>(ALIGNMENT, d_fft/2+1);
+    lsb_fft = align_alloc<fftw_complex>(ALIGNMENT, d_fft/2+1);
     msb.compute_fft(msb_fft);
     lsb.compute_fft(lsb_fft);
-    delete[] x;
+    free(x);
+    x = nullptr;
     fft_status = true;
 }
 
@@ -360,10 +369,10 @@ template<class Int, uint64_t d, uint64_t d_fft>
 void CirculantRing<Int, d, d_fft>::recomp_fft(const int64_t B)
 {
     assert(fft_status);
-    Int *values = new Int[d];
+    Int *values = align_alloc<Int>(ALIGNMENT, d);
     compute_fft_inv(msb_fft, values);
 
-    x = new Int[d];
+    x = align_alloc<Int>(ALIGNMENT, d);
     for (size_t i = 0 ; i < d ; ++i)
         x[i] = (values[i] % B) * B;
     //std::cout << "recomp msb " << *this << std::endl;
@@ -373,17 +382,17 @@ void CirculantRing<Int, d, d_fft>::recomp_fft(const int64_t B)
         x[i] += values[i];
     //std::cout << "recomp lsb " << *this << std::endl;
 
-    fftw_free(msb_fft);
-    fftw_free(lsb_fft);
-    delete[] values;
+    free(msb_fft);
+    free(lsb_fft);
+    free(values);
     fft_status = false;
 }
 
 template<class Int, uint64_t d, uint64_t d_fft>
 int64_t CirculantRing<Int, d, d_fft>::split(CirculantRing &msb, CirculantRing &lsb) const
 {
-    Int *most_significant = new Int[d];
-    Int *least_significant = new Int[d];
+    Int *most_significant = align_alloc<Int>(ALIGNMENT, d);
+    Int *least_significant = align_alloc<Int>(ALIGNMENT, d);
     int64_t used_threshold = x[0].split(most_significant[0], least_significant[0]);
     for (size_t i = 1 ; i < d ; ++i)
         x[i].split(most_significant[i], least_significant[i]);
@@ -410,7 +419,7 @@ template<class Int, uint64_t d, uint64_t d_fft>
 template<class R2>
 R2 CirculantRing<Int, d, d_fft>::rounding(const uint64_t old_modulus, const uint64_t new_modulus) const
 {
-    int64_t *res = new int64_t[d];
+    int64_t *res = align_alloc<int64_t>(ALIGNMENT, d);
     for (size_t i = 0 ; i < d ; ++i)
     {
         res[i] = (int64_t)std::floor((double)x[i] * (double)new_modulus / (double) old_modulus + 0.5);
@@ -419,13 +428,13 @@ R2 CirculantRing<Int, d, d_fft>::rounding(const uint64_t old_modulus, const uint
     }
     R2 result(res);
     //std::cout << result << std::endl;
-    delete[] res;
+    free(res);
     return result;
 }
 template<class Int, uint64_t d, uint64_t d_fft>
 CirculantRing<Int, d, d_fft> CirculantRing<Int, d, d_fft>::exact_rounding(const uint64_t old_modulus, const uint64_t new_modulus) const
 {
-    Int *res = new Int[d];
+    Int *res = align_alloc<Int>(ALIGNMENT, d);
     for (size_t i = 0 ; i < d ; ++i)
         res[i] = (int64_t)std::floor((double)x[i] * (double)new_modulus / (double) old_modulus + 0.5);
     return CirculantRing<Int, d, d_fft>(res, false);
@@ -444,7 +453,7 @@ static Int sample_long(const double variance)
 template<class Int, uint64_t d, uint64_t d_fft>
 CirculantRing<Int, d, d_fft> CirculantRing<Int, d, d_fft>::gaussian_sample(const double variance)
 {
-    Int *res = new Int[d];
+    Int *res = align_alloc<Int>(ALIGNMENT, d);
     for (size_t i = 0 ; i < d ; ++i)
         res[i] = sample_long<Int>(variance);
     return CirculantRing<Int, d, d_fft>(res, false);
@@ -454,7 +463,7 @@ CirculantRing<Int, d, d_fft> CirculantRing<Int, d, d_fft>::gaussian_sample(const
 template<class Int, uint64_t d, uint64_t d_fft>
 CirculantRing<Int, d, d_fft> CirculantRing<Int, d, d_fft>::uniform_sample()
 {
-    Int *res = new Int[d];
+    Int *res = align_alloc<Int>(ALIGNMENT, d);
     for (size_t i = 0 ; i < d ; ++i)
         //res[i] = rand();
         res[i] = (((int64_t)rand())<<31) + (int64_t)rand();
@@ -464,7 +473,7 @@ CirculantRing<Int, d, d_fft> CirculantRing<Int, d, d_fft>::uniform_sample()
 template<class Int, uint64_t d, uint64_t d_fft>
 CirculantRing<Int, d, d_fft> CirculantRing<Int, d, d_fft>::binary_sample()
 {
-    Int *res = new Int[d];
+    Int *res = align_alloc<Int>(ALIGNMENT, d);
     for (size_t i = 0 ; i < d ; ++i)
         res[i] = rand() % 2;
     return CirculantRing<Int, d, d_fft>(res, false);
@@ -473,7 +482,7 @@ CirculantRing<Int, d, d_fft> CirculantRing<Int, d, d_fft>::binary_sample()
 template<class Int, uint64_t d, uint64_t d_fft>
 CirculantRing<Int, d, d_fft> CirculantRing<Int, d, d_fft>::sample_a()
 {
-    Int *res = new Int[d];
+    Int *res = align_alloc<Int>(ALIGNMENT, d);
     if (d == 1)
     {
         res[0] = (((int64_t)rand())<<31) + (int64_t)rand();
@@ -495,7 +504,7 @@ CirculantRing<Int, d, d_fft> CirculantRing<Int, d, d_fft>::sample_a()
 template<class Int, uint64_t d, uint64_t d_fft>
 CirculantRing<Int, d, d_fft> CirculantRing<Int, d, d_fft>::sample_s(const double density)
 {
-    Int *res = new Int[d];
+    Int *res = align_alloc<Int>(ALIGNMENT, d);
     if (d == 1)
     {
         res[0] = rand() % 3 - 1;
@@ -541,7 +550,7 @@ CirculantRing<Int, d, d_fft> CirculantRing<Int, d, d_fft>::sample_e(const double
         return gaussian_sample(variance);
     else
     {
-        Int *res = new Int[d];
+        Int *res = align_alloc<Int>(ALIGNMENT, d);
         if (d == 1)
         {
             res[0] = rand() % 3 - 1;
@@ -571,7 +580,7 @@ CirculantRing<Int, d, d_fft> CirculantRing<Int, d, d_fft>::galois(const uint64_t
 template<class Int, uint64_t d, uint64_t d_fft>
 void CirculantRing<Int, d, d_fft>::galois_inplace(const uint64_t alpha)
 {
-    Int *tmp = new Int[d];
+    Int *tmp = align_alloc<Int>(ALIGNMENT, d);
     size_t current = 0;
     for (size_t i = 0 ; i < d ; ++i)
     {
@@ -580,7 +589,7 @@ void CirculantRing<Int, d, d_fft>::galois_inplace(const uint64_t alpha)
         current %= d;
     }
     std::copy(tmp, tmp + d, x);
-    delete[] tmp;
+    free(tmp);
 }
 
 template<class Int, uint64_t d, uint64_t d_fft>
@@ -588,7 +597,7 @@ template<uint64_t d2, uint64_t d2_fft, uint64_t d3_fft>
 CirculantRing<Int, d*d2, d3_fft> CirculantRing<Int, d, d_fft>::tensor_product(const CirculantRing<Int, d2, d2_fft>& rhs) const
 {
     const uint64_t new_dim = d*d2;
-    Int *result = new Int[d*d2];
+    Int *result = align_alloc<Int>(ALIGNMENT, d*d2);
     Int *rhs_x = rhs.get_data();
     size_t current = 0;
     size_t current_i = 0;
@@ -612,7 +621,7 @@ template <uint64_t p, uint64_t d2_fft>
 CirculantRing<Int, p, d2_fft> CirculantRing<Int, pq, d_fft>::trace() const
 {
     const uint64_t q = pq/p;
-    Int *x_res = new Int[p];
+    Int *x_res = align_alloc<Int>(ALIGNMENT, p);
 
     size_t idx = 0;
     for (size_t i = 0 ; i < p ; ++i)

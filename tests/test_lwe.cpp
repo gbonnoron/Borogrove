@@ -181,7 +181,7 @@ int main()
         /** Testing function extraction **/
         Fun F;
         Rp12 Rf(F);
-        fftw_complex *f = fftw_alloc_complex(FFT_DIM2);
+        fftw_complex *f = align_alloc<fftw_complex>(ALIGNMENT, FFT_DIM2);
         Rf.compute_fft(f);
         Rp12LWE rlwe_fun;
         Rp12 s_fun[3];
@@ -214,6 +214,7 @@ int main()
         //std::cout << "noise before\t" << std::log2(rlwe_fun.noise(s_fun, Qp, T)) << std::endl;
         gen_funexpextract_key(S, s_pq, sp_fun, VARIANCE_FUNEXPEXTRACT);
         LWE lwe_fun = fun_exp_extract(f, c_pq, *S);
+        free(f);
         delete S;
 
         CirculantRing<Zt, 1, 1> dec_fun;

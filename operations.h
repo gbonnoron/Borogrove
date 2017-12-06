@@ -17,6 +17,9 @@
 
 void print_param();
 
+template<class type>
+type *align_alloc(size_t alignment, size_t size);
+
 /**
  * @brief Compute the dot product of two vectors
  * @param v1 the first vector

@@ -27,6 +27,11 @@ void print_param()
     std::cout << "K_Qp=" << K_Qp << std::endl;
 }
 
+template<class type>
+inline type * align_alloc(size_t alignment, size_t size)
+{
+    return (type *)aligned_alloc(alignment, (size * sizeof(type) / alignment + 1) * alignment);
+}
 
 template<class R, uint64_t n>
 R dot_product(const R* const v1, const R* const v2)
@@ -174,13 +179,13 @@ template <class R, class Z, class R_crt, uint64_t p>
 RLWE<R_crt, 1> accumulation(const RLWE<CirculantRing<Zp12, 1, 1>, N> &ab, const RGSW<R> BS[N], const KSWKey<R> KS[p])
 {
     /// 1. Prepare the -a_p
-    Z *ab_p = new Z[N+1];
+    Z *ab_p = align_alloc<Z>(ALIGNMENT, N+1);
     ab.mod<Z>(ab_p);
     for (size_t i = 0 ; i < N ; ++i)
         ab_p[i] = -ab_p[i];
 
     /// 2. prepare T^{b_p}
-    Zq *Tb_coefs = new Zq[p];
+    Zq *Tb_coefs = align_alloc<Zq>(ALIGNMENT, p);
     std::fill(Tb_coefs, Tb_coefs + p, 0);
     Tb_coefs[(size_t)ab_p[N]] = 1;
     R Tb(Tb_coefs, false);
@@ -188,7 +193,7 @@ RLWE<R_crt, 1> accumulation(const RLWE<CirculantRing<Zp12, 1, 1>, N> &ab, const 
     /// 3. Perform the Inner product in the exponent and the mod-switch
     RLWE<R, 1> acc_p = ext_exp_inner<R, Z, p>(Q, T, N, ab_p, BS, KS);
     acc_p.mult(Tb);
-    delete[] ab_p;
+    free(ab_p);
 
     return acc_p.template mod_switch<R_crt, Qcrt, Q>();
 }
@@ -263,7 +268,7 @@ LWE gate(const size_t k, const int64_t *coefs, const LWE *c_i, const fftw_comple
 template <class R, uint64_t n, int64_t p>
 void gen_bootstrapping_keys(const uint64_t q, const uint64_t t, RGSW<R> Tsi[n], const Rz s[n], const R &s_p, const double variance)
 {
-    Zt *coefs = new Zt[p];
+    Zt *coefs = align_alloc<Zt>(ALIGNMENT, p);
     for (size_t j = 0 ; j < p ; ++j)
         coefs[j] = 0;
     for (size_t i = 0 ; i < n ; ++i)
@@ -274,7 +279,7 @@ void gen_bootstrapping_keys(const uint64_t q, const uint64_t t, RGSW<R> Tsi[n], 
         Tsi[i].encrypt(&s_p, T_si, variance);
         coefs[position] = 0;
     }
-    delete[] coefs;
+    free(coefs);
 }
 
 template <class R, uint64_t p>
@@ -290,7 +295,7 @@ void gen_keyswitching_keys(KSWKey<R, 1, 1, B_Q, K_Q> keys[p], const R &s_p, cons
 
 void gen_funexpextract_key(KSWKeyRp12 *S, const Rp12 s_pq[3], const Rz s[P1], const double variance)
 {
-    Zqp *coefs = new Zqp[P1*P2];
+    Zqp *coefs = align_alloc<Zqp>(ALIGNMENT, P1*P2);
     for (size_t i = 0 ; i < P1*P2 ; ++i)
         coefs[i] = 0;
     for (size_t i = 0 ; i < P1 ; ++i)
@@ -321,3 +326,12 @@ template Rp1_crt  dot_product<Rp1_crt,  1>(const Rp1_crt * const v1, const Rp1_c
 template Rp2_crt  dot_product<Rp2_crt,  1>(const Rp2_crt * const v1, const Rp2_crt * const v2);
 template Rp12_crt dot_product<Rp12_crt, 3>(const Rp12_crt * const v1, const Rp12_crt * const v2);
 template CirculantRing<Zp12, 1, 1> dot_product<CirculantRing<Zp12, 1, 1>, N>(const CirculantRing<Zp12, 1, 1> * const v1, const CirculantRing<Zp12, 1, 1> * const v2);
+
+template double       * align_alloc<double      >(size_t alignment, size_t size);
+template long         * align_alloc<long        >(size_t alignment, size_t size);
+template fftw_complex * align_alloc<fftw_complex>(size_t alignment, size_t size);
+template Zt           * align_alloc<Zt          >(size_t alignment, size_t size);
+template Zq           * align_alloc<Zq          >(size_t alignment, size_t size);
+template Zqcrt        * align_alloc<Zqcrt       >(size_t alignment, size_t size);
+template Zp12         * align_alloc<Zp12        >(size_t alignment, size_t size);
+template Rz           * align_alloc<Rz          >(size_t alignment, size_t size);

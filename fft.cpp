@@ -13,11 +13,17 @@
 #include "fft.h"
 #include "param.h"
 
+template <class type>
+static inline type * align_alloc(size_t alignment, size_t size)
+{
+    return (type *)aligned_alloc(alignment, (size * sizeof(type) / alignment + 1) * alignment);
+}
+
 template<size_t n>
 FFT<n>::FFT()
 {
-    in = fftw_alloc_real(n);
-    out = fftw_alloc_complex(n/2+1);
+    in = align_alloc<double>(ALIGNMENT, n);
+    out = align_alloc<fftw_complex>(ALIGNMENT, n/2+1);
 
     std::string file_name = "wisdom" + std::to_string(n);
     int existing_wisdom = fftw_import_wisdom_from_filename(file_name.c_str());
@@ -39,8 +45,8 @@ FFT<n>::~FFT()
 {
     fftw_destroy_plan(backward_plan);
     fftw_destroy_plan(forward_plan);
-    fftw_free(out);
-    fftw_free(in);
+    free(out);
+    free(in);
 }
 
 template<size_t n>
@@ -89,8 +95,8 @@ void product(fftw_complex *res_fft, const fftw_complex * lhs_fft, const fftw_com
 template<size_t p, size_t q>
 void tensor_product(fftw_complex *res_fft, const fftw_complex * lhs_fft, const fftw_complex* rhs_fft)
 {
-    fftw_complex *lhs_big = fftw_alloc_complex(p*q/2+1);
-    fftw_complex *rhs_big = fftw_alloc_complex(p*q/2+1);
+    fftw_complex *lhs_big = align_alloc<fftw_complex>(ALIGNMENT, p*q/2+1);
+    fftw_complex *rhs_big = align_alloc<fftw_complex>(ALIGNMENT, p*q/2+1);
 
     for (size_t i = 0 ; i < p/2+1 ; ++i)
     {
@@ -151,8 +157,8 @@ void tensor_product(fftw_complex *res_fft, const fftw_complex * lhs_fft, const f
     */
 
     product<p*q>(res_fft, lhs_big, rhs_big);
-    fftw_free(lhs_big);
-    fftw_free(rhs_big);
+    free(lhs_big);
+    free(rhs_big);
 }
 } //namespace fft
 

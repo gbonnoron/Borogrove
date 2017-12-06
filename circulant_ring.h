@@ -359,7 +359,7 @@ public:
     friend inline CirculantRing operator*(const int64_t &lhs, const CirculantRing &rhs) { return rhs * lhs; }
     friend CirculantRing operator*(const CirculantRing &lhs, const int64_t& rhs)
     {
-        Int *res = new Int[d];
+        Int *res = (Int *)aligned_alloc(ALIGNMENT, (d * sizeof(Int) / ALIGNMENT + 1) * ALIGNMENT);
         for (size_t i = 0 ; i < d ; ++i)
             res[i] = lhs.x[i] * rhs;
         return CirculantRing(res, false);
@@ -367,7 +367,7 @@ public:
 
     friend CirculantRing operator/(const CirculantRing &lhs, const int64_t& rhs)
     {
-        Int *res = new Int[d];
+        Int *res = (Int *)aligned_alloc(ALIGNMENT, (d * sizeof(Int) / ALIGNMENT + 1) * ALIGNMENT);
         for (size_t i = 0 ; i < d ; ++i)
             res[i] = lhs.x[i] / rhs;
         return CirculantRing(res, false);
@@ -458,7 +458,7 @@ public:
         fftw_complex *val_fft[n * K];
         for (size_t j = 0 ; j < n*K ; ++j)
         {
-            val_fft[j] = fftw_alloc_complex(d_fft/2+1);
+            val_fft[j] = (fftw_complex *) aligned_alloc(ALIGNMENT, ((d_fft/2+1) * sizeof(fftw_complex) / ALIGNMENT + 1) * ALIGNMENT);
             val[j].compute_fft(val_fft[j]);
         }
 
@@ -520,7 +520,7 @@ public:
             //res[np] -= ai_decomp[j] * ksw(i, j).get_b();
         }
         for (size_t j = 0 ; j < n*K ; ++j)
-            fftw_free(val_fft[j]);
+            free(val_fft[j]);
         return res;
     }
 };

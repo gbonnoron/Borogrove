@@ -16,7 +16,7 @@ int main()
     Zt *Zm_coefs = new Zt[P1*P2];
     Fun F;
     Rp12 Rf(F);
-    fftw_complex *f = fftw_alloc_complex(FFT_DIM2);
+    fftw_complex *f = align_alloc<fftw_complex>(ALIGNMENT, FFT_DIM2);
     Rf.compute_fft(f);
     Rp12LWE rlwe_fun;
     Rp12 s_fun[3];
@@ -53,7 +53,7 @@ int main()
     std::cout << cumul_noise << " " << cumul_noise / NB_TESTS << " = 2^" << std::log2(cumul_noise / NB_TESTS) << std::endl;
     delete S;
     delete[] Zm_coefs;
-    fftw_free(f);
+    free(f);
 
     return 0;
 }
